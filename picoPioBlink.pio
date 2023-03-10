@@ -1,0 +1,35 @@
+.program picoPioBlink
+    pull block      ; TX FIFOからOSRに32ビット値を読み込みます
+    out y, 32       ; OSRからyに32ビット分シフトします（コピーと同意）
+; ループ処理を書かなくても ".wrap_target" から ".wrap" までを無限にループするしくみになっています
+.wrap_target
+    mov x, y        ; yの値をxにコピーします
+    set pins, 1     ; 指定されたピンを "high" にします
+lp1:
+    jmp x-- lp1     ; xが0になるまでループします
+    mov x, y        ; yの値をxにコピーします
+    set pins, 0     ; 指定されたピンを "low" にします
+lp2:
+    jmp x-- lp2     ; xが0になるまでループします
+.wrap               ; .wrap_target にジャンプします
+
+
+% c-sdk {
+void picoPioBlink_program_init(PIO pio, uint sm, uint offset, uint pin) {
+
+    // 与えられたPIOからの出力を使用するためGPIOをセットアップします
+    pio_gpio_init(pio, pin);
+
+    // SMを使用してPIOの連続する複数のピンに同じピン方向を設定します
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+
+    // offsetからデフォルト設定を得ます
+    pio_sm_config c = picoPioBlink_program_get_default_config(offset);
+
+    // SM構成で'set'ピンを設定する。
+    sm_config_set_set_pins(&c, pin, 1);
+
+    // SMをリセットし、コンフィグレーションを行う。
+    pio_sm_init(pio, sm, offset, &c);
+}
+%}
